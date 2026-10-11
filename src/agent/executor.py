@@ -120,7 +120,6 @@ class AutonomousExecutor:
                 status=TaskStatus.IN_PROGRESS,
                 traces=[]
             )
-            # Use provided plan or generate through planner
             if plan:
                 task_result.plan = plan
             else:
@@ -132,6 +131,11 @@ class AutonomousExecutor:
                     task_result.summary = f"Task aborted during planning: {str(e)}"
                     save_task(task_result, db_path=self.db_path)
                     return task_result
+
+            if task_result.plan:
+                task_result.execution_mode = task_result.plan.execution_mode
+                task_result.model_name = task_result.plan.model_name
+                task_result.fallback_reason = task_result.plan.fallback_reason
 
         save_task(task_result, db_path=self.db_path)
 
@@ -429,6 +433,9 @@ class AutonomousExecutor:
                 clarification_response=clarification_response
             )
 
+            if decision.used_llm:
+                task_result.llm_replanning_used = True
+
             # Option A: Ask User Clarification
             if decision.action == ReplanAction.ASK_CLARIFICATION:
                 task_result.status = TaskStatus.CLARIFICATION_REQUIRED
@@ -442,7 +449,12 @@ class AutonomousExecutor:
                 replan_trace = ExecutionTraceItem(
                     step_number=step.step_number,
                     tool_name="planner_recovery",
-                    parameters={"action": "SUBSTITUTE_STEP", "reasoning": decision.reasoning},
+                    parameters={
+                        "action": "SUBSTITUTE_STEP",
+                        "reasoning": decision.reasoning,
+                        "used_llm": decision.used_llm,
+                        "model": decision.model_name
+                    },
                     status="RETRIED",
                     result={"substituted_tool": decision.adjusted_step.tool_name},
                     error=None,

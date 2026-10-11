@@ -35,12 +35,17 @@ class ActionPlanner:
 
         if self.llm_client.is_available():
             try:
-                return self._plan_with_llm(user_goal)
+                plan = self._plan_with_llm(user_goal)
+                plan.execution_mode = "LLM_PLANNING"
+                plan.model_name = self.llm_client.model
+                plan.fallback_reason = None
+                return plan
             except Exception as e:
                 logger.warning(f"LLM planning failed ({e}), falling back to deterministic planner")
-                return self._plan_deterministic(user_goal, fallback_reason=str(e))
+                return self._plan_deterministic(user_goal, fallback_reason=f"LLM API failure: {str(e)}")
         else:
-            return self._plan_deterministic(user_goal)
+            reason = "OPENAI_API_KEY / GROQ_API_KEY unavailable or unconfigured"
+            return self._plan_deterministic(user_goal, fallback_reason=reason)
 
     def _plan_with_llm(self, user_goal: str) -> ActionPlan:
         """Prompt OpenAI-compatible API to generate a structured JSON plan."""
@@ -87,6 +92,9 @@ STRICT SAFETY RULES:
 
         try:
             plan = ActionPlan.model_validate_json(response_text)
+            plan.execution_mode = "LLM_PLANNING"
+            plan.model_name = self.llm_client.model
+            plan.fallback_reason = None
         except ValidationError as ve:
             raise PlanValidationError(f"LLM plan failed Pydantic schema validation: {ve.errors()}")
 
@@ -151,7 +159,10 @@ STRICT SAFETY RULES:
         plan = ActionPlan(
             goal=user_goal,
             estimated_risk="MEDIUM",
-            steps=steps
+            steps=steps,
+            execution_mode="DETERMINISTIC_FALLBACK",
+            model_name="N/A (Deterministic)",
+            fallback_reason=fallback_reason
         )
         self.validate_plan_safety(plan)
         return plan
@@ -232,6 +243,8 @@ Attempt: {attempt} of 2"""
                     response_format={"type": "json_object"}
                 )
                 decision = ReplanDecision.model_validate_json(response)
+                decision.used_llm = True
+                decision.model_name = self.llm_client.model
                 return decision
             except Exception as e:
                 logger.warning(f"LLM replan call failed ({e}), falling back to deterministic replan logic")

@@ -318,11 +318,23 @@ def get_task(task_id: str, db_path: Optional[Path] = None) -> Optional[TaskResul
                 step_results[f"step_{tr.step_number}"] = sr
                 step_results[tr.tool_name] = sr
 
+        execution_mode = plan.execution_mode if plan else "DETERMINISTIC_FALLBACK"
+        model_name = plan.model_name if plan else None
+        fallback_reason = plan.fallback_reason if plan else None
+        llm_replanning_used = any(
+            t.tool_name == "planner_recovery" and t.parameters.get("used_llm") is True
+            for t in traces
+        )
+
         return TaskResult(
             task_id=row["task_id"],
             user_query=row["user_query"],
             status=TaskStatus(row["status"]),
             plan=plan,
+            execution_mode=execution_mode,
+            model_name=model_name,
+            llm_replanning_used=llm_replanning_used,
+            fallback_reason=fallback_reason,
             extracted_invoice=extracted,
             verification=verification,
             traces=traces,

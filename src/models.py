@@ -60,6 +60,9 @@ class ActionPlan(BaseModel):
     goal: str = Field(..., description="User's parsed high-level goal")
     steps: List[ActionStep] = Field(..., min_length=1, description="List of validated action steps")
     estimated_risk: str = Field(default="LOW", description="Risk assessment: LOW, MEDIUM, or HIGH")
+    execution_mode: str = Field(default="DETERMINISTIC_FALLBACK", description="LLM_PLANNING or DETERMINISTIC_FALLBACK")
+    model_name: Optional[str] = Field(default=None, description="Model identifier if LLM_PLANNING")
+    fallback_reason: Optional[str] = Field(default=None, description="Reason if deterministic fallback was triggered")
 
 
 class ExecutionTraceItem(BaseModel):
@@ -108,6 +111,8 @@ class ReplanDecision(BaseModel):
     """Structured decision output from the planner during failure recovery."""
     action: ReplanAction
     reasoning: str
+    used_llm: bool = False
+    model_name: Optional[str] = None
     adjusted_step: Optional[ActionStep] = None
     new_steps: Optional[List[ActionStep]] = None
     clarification_prompt: Optional[str] = None
@@ -120,6 +125,10 @@ class TaskResult(BaseModel):
     user_query: str
     status: TaskStatus = TaskStatus.PENDING
     plan: Optional[ActionPlan] = None
+    execution_mode: str = Field(default="DETERMINISTIC_FALLBACK", description="LLM_PLANNING or DETERMINISTIC_FALLBACK")
+    model_name: Optional[str] = Field(default=None, description="Name of LLM model utilized")
+    llm_replanning_used: bool = Field(default=False, description="Whether LLM was invoked for dynamic replanning")
+    fallback_reason: Optional[str] = Field(default=None, description="Explicit reason if deterministic fallback was triggered")
     extracted_invoice: Optional[InvoiceData] = None
     payable_record: Optional[PayableRecord] = None
     verification: Optional[VerificationEvidence] = None

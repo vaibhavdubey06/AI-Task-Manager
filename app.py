@@ -180,14 +180,32 @@ st.markdown("""
 
 # --- Sidebar: System Status & Persistence ---
 with st.sidebar:
-    st.markdown("### ⚙️ System Architecture")
+    st.markdown("### 🧠 Execution Intelligence")
     
-    # LLM Status Indicator
+    # LLM Observability & Mode Tracking
     llm_active = settings.is_llm_configured()
     if llm_active:
-        st.success(f"🟢 LLM Client: Connected ({settings.openai_model})")
+        st.markdown(f"""
+        <div style="background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+            <div style="font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; font-weight: 600;">Mode:</div>
+            <div style="color: #4ade80; font-weight: 700; font-size: 1.05rem; margin-bottom: 8px;">🟢 LLM Planning Enabled</div>
+            <div style="font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; font-weight: 600;">Model:</div>
+            <div style="color: #f8fafc; font-weight: 600; font-size: 0.95rem; margin-bottom: 8px;"><code>{settings.openai_model}</code></div>
+            <div style="font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; font-weight: 600;">Fallback:</div>
+            <div style="color: #94a3b8; font-weight: 500; font-size: 0.9rem;">Not Used</div>
+        </div>
+        """, unsafe_allow_html=True)
     else:
-        st.info("🟡 LLM Client: Offline / Deterministic Fallback Mode\n*(Honest reporting: OPENAI_API_KEY not set)*")
+        st.markdown("""
+        <div style="background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+            <div style="font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; font-weight: 600;">Mode:</div>
+            <div style="color: #facc15; font-weight: 700; font-size: 1.05rem; margin-bottom: 8px;">🟡 Deterministic Fallback</div>
+            <div style="font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; font-weight: 600;">Model:</div>
+            <div style="color: #94a3b8; font-weight: 500; font-size: 0.9rem; margin-bottom: 8px;">N/A (Deterministic)</div>
+            <div style="font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; font-weight: 600;">Reason:</div>
+            <div style="color: #f87171; font-weight: 500; font-size: 0.85rem;">OPENAI_API_KEY / GROQ_API_KEY unavailable</div>
+        </div>
+        """, unsafe_allow_html=True)
     
     auto_approve_toggle = st.toggle(
         "Auto-Approve Consequential Actions",
@@ -359,6 +377,35 @@ if current_task:
         </div>
         <div>
             <span class="badge {badge_class}" style="font-size: 1.05rem; padding: 6px 16px;">{status_label}</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Task Execution Intelligence Bar
+    is_llm = current_task.execution_mode == "LLM_PLANNING"
+    mode_pill = "🟢 LLM Planning Active" if is_llm else "🟡 Deterministic Fallback Active"
+    model_disp = current_task.model_name or ("openai/gpt-oss-120b" if is_llm else "N/A (Deterministic)")
+    replan_disp = "🟢 LLM Recovery Used" if current_task.llm_replanning_used else ("⚪ Replan Heuristics" if current_task.replanning_count > 0 else "None Needed")
+    fallback_disp = current_task.fallback_reason if current_task.fallback_reason else "Not Used"
+    fallback_color = "#f87171" if current_task.fallback_reason else "#4ade80"
+
+    st.markdown(f"""
+    <div style="background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 10px; padding: 12px 18px; margin-bottom: 18px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+        <div>
+            <span style="color: #94a3b8; font-size: 0.8rem; text-transform: uppercase; font-weight: 600;">Planning Intelligence:</span><br>
+            <strong style="color: {'#4ade80' if is_llm else '#facc15'}; font-size: 0.95rem;">{mode_pill}</strong>
+        </div>
+        <div>
+            <span style="color: #94a3b8; font-size: 0.8rem; text-transform: uppercase; font-weight: 600;">Model:</span><br>
+            <code style="color: #f8fafc; font-size: 0.9rem;">{model_disp}</code>
+        </div>
+        <div>
+            <span style="color: #94a3b8; font-size: 0.8rem; text-transform: uppercase; font-weight: 600;">Replanning Engine:</span><br>
+            <strong style="color: #e2e8f0; font-size: 0.9rem;">{replan_disp}</strong>
+        </div>
+        <div>
+            <span style="color: #94a3b8; font-size: 0.8rem; text-transform: uppercase; font-weight: 600;">Fallback Status:</span><br>
+            <strong style="color: {fallback_color}; font-size: 0.85rem;">{fallback_disp}</strong>
         </div>
     </div>
     """, unsafe_allow_html=True)

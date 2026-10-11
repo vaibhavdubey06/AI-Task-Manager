@@ -8,123 +8,133 @@
 
 **CentrAlign AI Engineering Challenge Submission: Autonomous AI Task Worker**
 
+> 💡 **Repository Recommendation Note**:  
+> **Current Repository Name**: `AI-Task-Manager`  
+> **Recommended Repository Name**: `Autonomous-AI-Task-Worker`  
+> **Rationale**: This project is not a personal todo or productivity task manager; it is an **autonomous digital enterprise worker** that translates business objectives into verified actions, interacts with financial ledgers, enforces permission boundaries, and verifies business outcomes.
+
 ---
 
-## Overview
+## Project Overview
 
-Modern enterprises face significant productivity bottlenecks in repetitive administrative back-office workflows—such as invoice processing, ledger reconciliation, and vendor record management. While Large Language Models (LLMs) excel at language interpretation, unconstrained LLM agents frequently fail in production due to hallucinations, unpredictable tool execution, silent data corruption, and catastrophic financial side effects.
+Modern enterprise back-offices are burdened with high-volume, repetitive data entry and document reconciliation workflows (such as accounts payable processing and invoice auditing). While Large Language Models (LLMs) excel at natural-language reasoning, unconstrained autonomous agents frequently fail in enterprise production because of hallucinations, silent failures, lack of guardrails, and accidental mutations to production databases.
 
-The **Autonomous AI Task Worker** bridges the gap between probabilistic AI reasoning and deterministic enterprise execution. It acts as a reliable autonomous digital employee designed around five foundational pillars:
+The **Autonomous AI Task Worker** bridges the gap between probabilistic AI reasoning and deterministic enterprise execution. It demonstrates an autonomous agent architecture with:
+1. **Dynamic Planning**: Translates goals into structured, validated plans with data references (`$steps...`).
+2. **Deterministic Execution & Tool Sandboxing**: Restricts tool calls to an allowlist with strict Pydantic schemas.
+3. **Human-in-the-Loop Safeguards**: Pauses state-changing financial transactions for human sign-off.
+4. **Independent Outcome Verification**: Verifies database state against source documents before reporting success.
+5. **Bounded Replanning & Clarification**: Recovers from runtime failures within a strict bound (`MAX_REPLANNING_ATTEMPTS = 2`) and prompts for interactive clarification when ambiguities arise.
 
-1. **Structured Goal Planning**: Decomposes freeform natural language requests into structured, validated action plans.
-2. **Sandboxed Tool Execution & Dynamic Data Piping**: Executes only vetted, schema-validated tools using dynamic reference resolution (`$steps.<step_id>.result.<field>`) rather than hardcoded pipeline bindings.
-3. **Bounded Autonomy & Human Approval**: Pauses execution before irreversible state changes (e.g., entering accounts payable financial commitments), requiring explicit human-in-the-loop sign-off.
-4. **Independent Outcome Verification**: Cross-checks persistent database state against source truth documents before declaring success, eliminating false positives.
-5. **Dynamic Failure Replanning & Clarification**: Inspects runtime failures, adapts search queries or tool choices within strict bounds (`MAX_REPLANNING_ATTEMPTS = 2`), and solicits user clarification when ambiguities arise.
+---
+
+## 🛡️ LLM Safety Boundary
+
+Enterprise systems cannot permit non-deterministic models to directly execute arbitrary code or mutate financial ledgers. This system enforces a strict separation of concerns:
+
+```
+┌────────────────────────────────────────────────────────┐
+│            PROBABILISTIC REASONING (LLM)               │
+│  - Understands user intent and business context        │
+│  - Formulates structured ActionPlans                   │
+│  - Suggests failure recovery & replanning strategies   │
+└──────────────────────────┬─────────────────────────────┘
+                           │ Outputs Structured Pydantic JSON
+                           ▼
+┌────────────────────────────────────────────────────────┐
+│             DETERMINISTIC SYSTEM CORE                  │
+│  - Validates tool calls against Pydantic schemas       │
+│  - Enforces permissions via ToolRegistry sandbox       │
+│  - Pauses for Human Approval on consequential actions  │
+│  - Executes tools & logs persistent traces             │
+│  - Independently audits SQL database against files     │
+│  - Controls recovery bounds (MAX_REPLANNING = 2)       │
+└────────────────────────────────────────────────────────┘
+```
+
+- **The LLM is responsible for**:
+  - Understanding user intent and natural language objectives
+  - Generating structured execution plans with dynamic reference tokens
+  - Suggesting recovery actions when tools encounter unexpected data
+- **The deterministic system is responsible for**:
+  - Validating tool calls against schema allowlists
+  - Executing actual operations and enforcing permissions
+  - Guarding consequential state changes with human approvals
+  - Independently verifying persistent database state
+- **Core Safety Invariant**: **The LLM cannot directly modify business state or execute arbitrary code.**
+
+---
+
+## Architecture Diagram
+
+```
+User
+ │
+Streamlit Interface
+ │
+AI Planner (Groq / OpenAI / Deterministic Fallback)
+ │
+Execution Engine (AutonomousExecutor)
+ │
+Dynamic Parameter Resolver ($steps.<tool>.result.<field>)
+ │
+Tool Registry (Sandbox Security Boundary)
+ │
+Tools (search_invoices, read_invoice, extract_invoice_data, create_payable_record)
+ │
+Database (SQLite / company.db)
+ │
+Independent Verifier (OutcomeVerifier SQL Audit)
+```
 
 ---
 
 ## Demo Workflow
 
-Consider the flagship enterprise task:
+Flagship task:
+> **"Find the latest invoice from Acme Technologies, extract the amount and due date, enter it into the company payable system, and confirm completion."**
 
-> **"Find the latest invoice from Acme Technologies, extract amount and due date, enter it into payable system, and confirm completion."**
-
-The autonomous worker executes this request through a 7-stage lifecycle:
-
-```
-[1. Goal Understanding] ──► [2. Planning] ──► [3. Tool Execution] ──► [4. Observation]
-                                                                             │
-[7. Final Response] ◄── [6. Independent Verification] ◄── [5. Approval Step] ◄─┘
-```
-
-1. **Goal Understanding**:
-   The planner receives the natural-language goal and extracts target entities (`Acme Technologies`), desired fields (`amount`, `due date`), and action intent (`payable entry`, `confirmation`).
-2. **Planning**:
-   Generates an action plan containing:
-   - `Step 1`: `search_invoices(vendor_name="Acme Technologies")`
-   - `Step 2`: `read_invoice(filename="$steps.search_invoices.result.matches[0].filename")`
-   - `Step 3`: `extract_invoice_data(raw_content="$steps.read_invoice.result.content", file_type="$steps.read_invoice.result.file_type")`
-   - `Step 4`: `create_payable_record(...)` with dynamic references to extracted fields (`consequential: true`).
-3. **Tool Execution**:
-   The execution engine resolves dynamic parameter references against cached step outputs and runs each tool in an isolated sandbox.
-4. **Observation**:
-   Captures structured JSON results, execution latencies, and status metadata into persistent execution traces.
-5. **Approval Step (Human-in-the-Loop Safeguard)**:
-   Before executing `create_payable_record`, the engine detects `consequential: true`, halts the task in `APPROVAL_REQUIRED`, and presents the extracted invoice summary ($2,750.50 due 2024-12-15) for user review in the UI.
-6. **Independent Verification**:
-   Upon approval and insertion, the `OutcomeVerifier` independently queries SQLite directly (bypassing LLM interpretation) and compares 4 financial attributes against the source invoice document:
-   - Exact invoice number match (`INV-2024-002`)
-   - Vendor name normalization match (`ACME TECHNOLOGIES INC.`)
-   - Float numerical amount equality within 0.005 tolerance (`$2,750.50`)
-   - Due date string equality (`2024-12-15`)
-7. **Final Response**:
-   The system transitions to `SUCCESSFUL`, outputting verified payable database IDs, execution traces, and audit logs.
-
----
-
-## Architecture
-
-```mermaid
-flowchart TD
-    User([User / Evaluator]) <--> UI[Streamlit UI Dashboard]
-    UI <--> Planner[Agent Planner\nOpenAI / DeepSeek / Deterministic Fallback]
-    Planner -->|ActionPlan with $steps references| Executor[Execution Engine\nAutonomousExecutor]
-    
-    subgraph Execution Loop
-        Executor --> Resolver[Dynamic Parameter Resolver\nPath Traversal & Type Preservation]
-        Resolver --> Registry[Tool Registry\nSecurity Sandbox & Permission Boundary]
-        Registry --> Tools[Registered Tools\nInvoice Tools & Payable Tools]
-        Tools --> Obs[StepResult Observation & Tracing]
-        Obs --> Replanner{Failure or Empty?\nAttempt < 2}
-        Replanner -->|Retry / Substitute| Executor
-        Replanner -->|Ambiguity| UI
-    end
-    
-    Tools <--> DB[(SQLite Database\ncompany.db)]
-    Executor --> Verifier[Outcome Verifier\nIndependent SQL Audit]
-    Verifier <--> DB
-    Verifier -->|Verification Evidence| UI
-```
-
-### Component Hierarchy
-- **Streamlit UI**: Presentation and human approval surface with real-time trace inspection and interactive clarification inputs.
-- **Agent Planner**: Generates structured `ActionPlan` models with dynamic reference bindings. Operates via LLM API or deterministic fallback.
-- **Execution Engine**: Orchestrates execution state machines, recoverable retry policies, human-in-the-loop pauses, and replanning loops.
-- **Dynamic Parameter Resolver**: Generic engine resolving `$steps.<tool>.result.<path>` tokens into primitive Python types (`float`, `dict`, `list`).
-- **Tool Registry**: Sandbox perimeter preventing arbitrary code execution. Validates inputs against Pydantic schemas.
-- **Tools**: Single-responsibility workers (`search_invoices`, `read_invoice`, `extract_invoice_data`, `create_payable_record`, `get_payable_record`, `list_payables`).
-- **SQLite Database**: Persistent store for payables, task states, execution traces, and step results.
-- **Outcome Verifier**: Out-of-band audit layer comparing persistent SQL state with ground truth invoice documents.
+1. **Goal Formulation**: The planner ingests the goal and queries the LLM with registered tool schemas.
+2. **Action Plan Generation**: Emits an ordered `ActionPlan` with dynamic parameter references:
+   - Step 1: `search_invoices(vendor_name="Acme Technologies")`
+   - Step 2: `read_invoice(filename="$steps.search_invoices.result.latest.filename")`
+   - Step 3: `extract_invoice_data(raw_content="$steps.read_invoice.result.content", filename="$steps.read_invoice.result.filename")`
+   - Step 4: `create_payable_record(...)` (`consequential: true`).
+3. **Execution & Observation**: Tool outputs are recorded into `StepResult` containers.
+4. **Human Approval Safeguard**: Before committing to Accounts Payable, the agent enters `APPROVAL_REQUIRED` and displays the invoice summary ($2,750.50 due 2024-10-31) in the UI.
+5. **Approval & Write**: User clicks "Approve & Commit". The record is inserted into SQLite.
+6. **Independent Verification**: `OutcomeVerifier` queries SQLite directly and audits invoice number, vendor, numerical amount, and due date.
+7. **Final Verified Response**: Status transitions to `SUCCESSFUL`.
 
 ---
 
 ## Key Engineering Decisions
 
-### 1. Bounded Autonomy Over Unrestricted Execution
-Autonomous agents given unbounded loops can spin indefinitely on failing tools, incur excessive API costs, or drift into unintended states. This implementation bounds autonomy to a strict cycle with `MAX_REPLANNING_ATTEMPTS = 2` and max tool retries (`MAX_RETRIES = 3`). Tasks that cannot be resolved automatically halt cleanly in `CLARIFICATION_REQUIRED` or `FAILED`.
+### 1. Why Bounded Autonomy Over Unrestricted Loops
+Unbounded agent loops risk infinite retries, hallucinated rabbit holes, and runaway API spend. We cap retries at `MAX_RETRIES = 3` and dynamic recovery replanning at `MAX_REPLANNING_ATTEMPTS = 2`. If unresolved, the system halts cleanly in `CLARIFICATION_REQUIRED` or `FAILED`.
 
-### 2. Explicit Tool Registry (Sandbox Perimeter)
-Allowing an LLM to generate raw code, bash scripts, or shell commands introduces severe vulnerabilities (e.g., prompt injection leading to remote code execution). The `ToolRegistry` enforces an allowlist model: only pre-registered tools with strict Pydantic schemas can execute. Unauthorized tool names raise `PermissionDeniedError`.
+### 2. Why Human Approval Before State-Changing Actions
+Financial commitments (creating payable records) cannot rely purely on probabilistic LLM inferences. Tools marked `consequential: true` cause the engine to freeze execution and request human review before writing to the database.
 
-### 3. Human Approval Before State-Changing Actions
-Financial commitments (creating payable records) cannot rely purely on probabilistic LLM inferences. Tools marked `consequential: True` trigger a state machine transition to `APPROVAL_REQUIRED`. The agent pauses, preserves execution state, and awaits explicit human confirmation via the UI.
+### 3. Why Independent Verification
+Agents must not grade their own homework. The `OutcomeVerifier` runs as a distinct post-execution phase that queries the database directly (bypassing LLM interpretation) and cross-checks 4 invariant financial attributes against the source file.
 
-### 4. Independent Verification
-Self-reported tool outputs cannot be trusted as definitive proof of task completion. The `OutcomeVerifier` runs as a distinct post-execution phase that queries the database directly and performs strict multi-attribute matching against source data. If any field diverges (amount, vendor, due date), the task fails verification.
+### 4. Why Explicit Tool Registry (Sandbox Boundary)
+Allowing an agent to emit arbitrary Python scripts or bash commands creates critical security vulnerabilities (RCE, prompt injection). `ToolRegistry` enforces an allowlist: only registered tools with explicit Pydantic schemas can execute.
 
-### 5. Deterministic Safeguards Around LLM Behavior
-LLMs provide flexible natural language translation and query formulation, but should not control financial math, SQL transactions, or system state transitions. All parameter validation, type coercion, retry math, and database integrity rules are implemented deterministically in Python.
+### 5. Why Deterministic Safeguards Around LLM Behavior
+LLMs provide flexible translation and planning, but should not control financial math, SQL transactions, or system state transitions. All parameter validation, type coercion, retry math, and database integrity rules are implemented deterministically in Python.
 
 ---
 
 ## Reliability Features
 
 - **Exponential Backoff & Retries**: Distinguishes transient I/O exceptions (`RecoverableToolError`) from non-recoverable schema faults, retrying up to 3 times before triggering replanning.
-- **Dynamic Replanning on Failure**: When a tool fails or yields zero matches, the failure context is analyzed by the replanner to retry with relaxed parameters or substitute tools without starting over.
+- **Dynamic Failure Replanning**: When a tool fails or yields zero matches, the failure context is analyzed by the replanner to retry with relaxed parameters or substitute steps without restarting from scratch.
 - **Interactive Clarification**: Ambiguous vendor entities or incomplete records halt with `CLARIFICATION_REQUIRED`, presenting a dedicated UI prompt for user guidance and resuming the same task instance.
 - **Duplicate Prevention & Idempotency**: Database-level unique constraints `UNIQUE(vendor_name, invoice_number)` prevent duplicate ledger entries on retries or re-executions.
-- **Granular Execution Traces**: Every tool invocation records step number, tool name, resolved parameters, outputs, errors, latencies, and timestamps directly to SQLite for post-mortem auditing.
+- **Execution Traces**: Every tool invocation records step number, tool name, resolved parameters, outputs, errors, latencies, and timestamps directly to SQLite for post-mortem auditing.
+- **Execution Intelligence Observability**: Every task explicitly displays whether initial planning and replanning used live LLM intelligence (`LLM_PLANNING`) or deterministic offline logic (`DETERMINISTIC_FALLBACK`), with transparent fallback reasons.
 
 ---
 
@@ -133,7 +143,7 @@ LLMs provide flexible natural language translation and query formulation, but sh
 - **Zero Arbitrary Code Execution**: No `eval()`, `exec()`, or unsanitized shell invocations.
 - **Pydantic Schema Validation**: Every input argument and output payload is strictly validated at runtime against strongly-typed Pydantic schemas.
 - **Path Traversal Sandboxing**: Invoice file access is strictly constrained to the authorized `data/invoices/` directory; attempts to traverse outside (`../../`) are blocked.
-- **Credential Isolation**: LLM API keys and configuration parameters are loaded via environment variables (`.env`) and never logged in execution traces.
+- **Credential Isolation**: LLM API keys and configuration parameters are loaded via environment variables (`.env`) and never committed to version control.
 
 ---
 
@@ -141,7 +151,9 @@ LLMs provide flexible natural language translation and query formulation, but sh
 
 The suite includes **24 automated tests** covering unit, integration, and end-to-end failure scenarios.
 
-### Test Matrix
+```bash
+pytest -v
+```
 
 | Test Module | Tests | Scenarios Covered |
 | :--- | :---: | :--- |
@@ -151,39 +163,33 @@ The suite includes **24 automated tests** covering unit, integration, and end-to
 | `tests/test_replanning.py` | 4 | Vendor search relaxation recovery, `MAX_REPLANNING_ATTEMPTS` enforcement, interactive clarification resumption, demo environment reset |
 | `tests/test_scenarios.py` | 6 | E2E core Acme workflow with HITL approval, duplicate execution blocking, missing file handling, malformed invoice recovery, transient failure backoff, independent verifier tampering detection |
 
-Run all tests via:
-```bash
-pytest -v
-```
-
 ---
 
 ## Limitations
 
-- **Simulated Back-Office Environment**: Operates against local file stores and an embedded SQLite database rather than external ERP systems (SAP, Oracle, NetSuite).
-- **Tool Domain Scope**: Toolset is optimized for document extraction and payable records; expanding to general ledger or bank reconciliation requires additional tool definitions.
+- **Simulated Back-Office Environment**: Operates against local file stores and an embedded SQLite database rather than live ERP APIs (SAP, NetSuite, Workday).
+- **Limited Tool Ecosystem**: Focused on document parsing and payable ledgering; broader workflows (bank reconciliation, general ledger) require additional tool definitions.
 - **SQLite Concurrency**: SQLite file locking is suited for demonstration and single-worker setups; enterprise production requires PostgreSQL.
-- **Bounded Replanning Scope**: The recovery loop supports up to 2 replanning attempts to avoid infinite loops, meaning edge cases with multiple compound errors require human intervention.
+- **Bounded Replanning Scope**: Up to 2 replanning attempts are permitted to ensure termination; complex compound multi-tool failures require human intervention.
 
 ---
 
-## Future Improvements
+## Future Work
 
 - **Enterprise ERP Connectors**: Native adapters for SAP S/4HANA, NetSuite SuiteTalk REST APIs, and Workday.
-- **PostgreSQL & Distributed Celery/Temporal Workers**: Migrate from SQLite to an event-driven distributed task execution architecture with durable orchestration.
+- **PostgreSQL & Distributed Workers**: Migrate to an event-driven task queue (Celery, Temporal) with transactional PostgreSQL persistence.
+- **Computer-Use & Browser Layer**: Enable autonomous navigation of legacy web portals that lack REST APIs.
 - **Multi-Modal Document Parsing**: Integrate vision models (LayoutLM, Gemini Vision) to parse non-standard scanned PDF and image receipts.
-- **Multi-Agent Orchestration**: Separate roles into specialized planner, executor, auditor, and communication agents.
+- **Richer Verification Engine**: Add multi-way reconciliation against purchase orders (3-way PO matching).
 
 ---
 
 ## 🛠️ Demo Data Reset & Evaluation Instructions
 
-Evaluators can run and reset the demo environment repeatedly without manual cleanup.
-
 ### 1. Setup Environment
 ```bash
 # Clone and navigate to project root
-cd AI_Task_Manager
+cd AI-Task-Manager
 
 # Create and activate virtual environment
 python -m venv .venv
@@ -197,19 +203,18 @@ pip install -r requirements.txt
 ```
 
 ### 2. Configure API Key (Optional)
-Copy `.env.example` to `.env`. If using OpenAI, DeepSeek, or any compatible endpoint:
+Copy `.env.example` to `.env`. Supports Groq, OpenAI, or any OpenAI-compatible provider:
 ```env
-OPENAI_API_KEY=your_api_key_here
-OPENAI_BASE_URL=https://api.openai.com/v1
-OPENAI_MODEL=gpt-4o-mini
+OPENAI_BASE_URL=https://api.groq.com/openai/v1
+OPENAI_API_KEY=your_key_here
+OPENAI_MODEL=openai/gpt-oss-120b
 ```
-*Note: If no API key is provided, the system seamlessly operates using its deterministic planning mode.*
+*(If no API key is provided, the system seamlessly operates using its deterministic offline planner).*
 
 ### 3. Run Automated Tests
 ```bash
 pytest -v
 ```
-*Expected: 24 passed.*
 
 ### 4. Launch Streamlit Application
 ```bash
@@ -218,11 +223,5 @@ streamlit run app.py
 Open [http://localhost:8501](http://localhost:8501) in your browser.
 
 ### 5. Reset Demo Environment
-1. In the Streamlit sidebar, locate **Demo Controls**.
-2. Click **"Reset Demo Environment"**.
-3. All tasks, traces, and payable records are purged, and sample invoices are re-initialized.
-
-### 6. Test Core Scenarios in the UI
-- **Happy Path Workflow**: Click sample prompt `1. Process Acme Invoice (Standard Workflow)`. Click **Execute Autonomous Task**. Review the generated plan, click **Approve & Continue** when prompted, and observe the successful independent verification.
-- **Interactive Clarification**: Click sample prompt `3. Ambiguous Vendor Invoice (Clarification Flow)`. Execute the task. The agent halts with `CLARIFICATION_REQUIRED`. In the clarification box, enter `Process Acme Technologies` and click **Submit Clarification & Resume Task**. Observe the task resume and complete successfully.
-- **Duplicate Prevention**: Re-run the Acme prompt without resetting. The system detects the duplicate and prevents duplicate ledger entries.
+1. In the sidebar under **Demo Controls**, click **"Reset Demo Environment"**.
+2. All tasks, traces, and payable records are purged for a clean test run.
