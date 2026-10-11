@@ -28,11 +28,15 @@ The **Autonomous AI Task Worker** bridges the gap between probabilistic AI reaso
 
 ---
 
-## 🎥 3-Minute Demonstration Video
+## 🎥 3-Minute Demonstration Guide
 
-A complete 3-minute video recording of the autonomous agent in action—showcasing live Groq LLM planning, human-in-the-loop approval, independent verification, and interactive clarification:
+A timed, step-by-step walkthrough for technical interviewers and hiring evaluators is provided in [DEMO_SCRIPT.md](DEMO_SCRIPT.md).
 
-![CentrAlign AI Autonomous Task Worker Demo Walkthrough](demo_walkthrough.webp)
+### Quick Demonstration Structure:
+1. **[0:00 - 0:30] Architecture & LLM Observability**: Explain the separation between probabilistic LLM reasoning and deterministic execution. Show the sidebar **Execution Intelligence** status (`🟢 LLM Planning Enabled` via Groq `openai/gpt-oss-120b`).
+2. **[0:30 - 1:45] Flagship Workflow & Safety Safeguards**: Run the Acme Technologies invoice task. Observe dynamic parameter resolution (`$steps...`), the automatic pause at **`⚠️ APPROVAL REQUIRED`** for human financial sign-off, and **Independent Outcome Verification** against SQLite.
+3. **[1:45 - 2:30] Resilience & Interactive Clarification**: Run the ambiguous vendor prompt. Observe the agent halt in **`❓ CLARIFICATION REQUIRED`**, submit user guidance, and resume the existing task lifecycle.
+4. **[2:30 - 3:00] Technical Deep Dive & Production Scaling**: Discuss bounded replanning (`MAX_REPLANNING_ATTEMPTS = 2`), SQLite vs PostgreSQL, and scaling with Temporal/Celery.
 
 ---
 
