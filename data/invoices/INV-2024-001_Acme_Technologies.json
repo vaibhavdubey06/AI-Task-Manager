@@ -1,0 +1,27 @@
+{
+  "invoice_number": "INV-2024-001",
+  "vendor_name": "Acme Technologies",
+  "vendor_address": "100 Innovation Way, Suite 400, San Francisco, CA 94107",
+  "invoice_date": "2024-09-15",
+  "due_date": "2024-10-15",
+  "currency": "USD",
+  "subtotal": 1300.00,
+  "tax": 150.00,
+  "total_amount": 1450.00,
+  "purchase_order": "PO-9921",
+  "line_items": [
+    {
+      "description": "Cloud Infrastructure - September 2024",
+      "quantity": 1,
+      "unit_price": 1000.00,
+      "amount": 1000.00
+    },
+    {
+      "description": "Premium 24/7 SLA Support",
+      "quantity": 1,
+      "unit_price": 300.00,
+      "amount": 300.00
+    }
+  ],
+  "payment_terms": "Net 30"
+}
