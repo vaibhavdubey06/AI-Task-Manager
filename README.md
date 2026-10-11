@@ -28,6 +28,14 @@ The **Autonomous AI Task Worker** bridges the gap between probabilistic AI reaso
 
 ---
 
+## 🎥 3-Minute Demonstration Video
+
+A complete 3-minute video recording of the autonomous agent in action—showcasing live Groq LLM planning, human-in-the-loop approval, independent verification, and interactive clarification:
+
+![CentrAlign AI Autonomous Task Worker Demo Walkthrough](demo_walkthrough.webp)
+
+---
+
 ## 🛡️ LLM Safety Boundary
 
 Enterprise systems cannot permit non-deterministic models to directly execute arbitrary code or mutate financial ledgers. This system enforces a strict separation of concerns:
