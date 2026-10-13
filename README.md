@@ -28,15 +28,19 @@ The **Autonomous AI Task Worker** bridges the gap between probabilistic AI reaso
 
 ---
 
-## 🎥 3-Minute Demonstration Guide
+## 🎥 Project Demonstration Video
 
-A timed, step-by-step walkthrough for technical interviewers and hiring evaluators is provided in [DEMO_SCRIPT.md](DEMO_SCRIPT.md).
+Watch the complete demonstration video showcasing live LLM planning, human-in-the-loop approval, independent SQL verification, and interactive clarification:
 
-### Quick Demonstration Structure:
-1. **[0:00 - 0:30] Architecture & LLM Observability**: Explain the separation between probabilistic LLM reasoning and deterministic execution. Show the sidebar **Execution Intelligence** status (`🟢 LLM Planning Enabled` via Groq `openai/gpt-oss-120b`).
-2. **[0:30 - 1:45] Flagship Workflow & Safety Safeguards**: Run the Acme Technologies invoice task. Observe dynamic parameter resolution (`$steps...`), the automatic pause at **`⚠️ APPROVAL REQUIRED`** for human financial sign-off, and **Independent Outcome Verification** against SQLite.
-3. **[1:45 - 2:30] Resilience & Interactive Clarification**: Run the ambiguous vendor prompt. Observe the agent halt in **`❓ CLARIFICATION REQUIRED`**, submit user guidance, and resume the existing task lifecycle.
-4. **[2:30 - 3:00] Technical Deep Dive & Production Scaling**: Discuss bounded replanning (`MAX_REPLANNING_ATTEMPTS = 2`), SQLite vs PostgreSQL, and scaling with Temporal/Celery.
+👉 **[Watch the Live Demonstration on Loom](https://www.loom.com/share/f7974c6017f04d988864ba362b34a5ba)**
+
+[![Autonomous AI Task Worker Demo](https://cdn.loom.com/sessions/thumbnails/f7974c6017f04d988864ba362b34a5ba-with-play.gif)](https://www.loom.com/share/f7974c6017f04d988864ba362b34a5ba)
+
+### Key Capabilities Demonstrated:
+1. **Architecture & LLM Observability**: Live Groq LLM planning status (`openai/gpt-oss-120b`), tool registry sandbox boundary, and clean demo environment reset.
+2. **Flagship Workflow & Safety Gates**: Decomposes natural language goal, dynamically resolves parameters (`$steps...`), pauses at `APPROVAL_REQUIRED` for financial sign-off, and executes.
+3. **Independent Outcome Verification**: Direct SQL query audits all 4 invariant attributes (Invoice #, Vendor, Amount, Due Date) against source invoice.
+4. **Resilience & Interactive Clarification**: Detects ambiguous document entities, halts in `CLARIFICATION_REQUIRED`, accepts user guidance, and resumes execution seamlessly.
 
 ---
 
